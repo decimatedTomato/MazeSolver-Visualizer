@@ -2,13 +2,15 @@
 <html lang="en" dir="ltr">
   <head>
     <!--metadata n stuff-->
-    <title>Maze solving visualization</title>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Maze solving visualization</title>
+    <script src="dist/main.js" defer></script>
   </head>
   <body>
     <!--UI-->
     <h1>Path Finding Visualization</h1>
-    <form action="/src/main.ts">
+    <form id="settings">
       <input type="radio" id="dfs" name="path_algorithm" value="Depth First Search">
       <label for="dfs">Depth First Search</label><br>
       <input type="radio" id="bfs" name="path_algorithm" value="Breadth First Search">
@@ -19,10 +21,11 @@
       <label for="a*">A*</label><br>
 
       <input type="submit" value="Start">
-    </form>
 
-    <!--CANVAS-->
-    <canvas id="maze"</canvas>
     </form>
+    <p></p>
+    
+    <!--CANVAS-->
+    <canvas id="maze_canvas" width="600" height="300"></canvas>
   </body>
 </html>
