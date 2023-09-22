@@ -2,12 +2,11 @@
 // const form = document.querySelector<HTMLFormElement>("#settings")
 
 const button = document.getElementById("start") as HTMLButtonElement;
-button.addEventListener("click", (_e) => {
-    console.log("Pressed");
-    if (document.getElementById("dfs")) dfs();
-    if (document.getElementById("bfs")) bfs();
-    if (document.getElementById("dij")) dijkstra();
-    if (document.getElementById("a*")) astar();
+button.addEventListener("click", (e) => {
+    if ((document.getElementById("dfs") as HTMLInputElement).checked) dfs();
+    if ((document.getElementById("bfs") as HTMLInputElement).checked) bfs();
+    if ((document.getElementById("dij") as HTMLInputElement).checked) dijkstra();
+    if ((document.getElementById("a*") as HTMLInputElement).checked) astar();
 });
 
 enum MazeCell {
@@ -20,17 +19,19 @@ type Coordinate = {
     x: number;
     y: number;
 };
-type searched_cell = {
-    coord: Coordinate;
-    prev_cell: searched_cell | null;
-};
-
-function random_coordinate(x: number, y: number): Coordinate {
+function coordinate_equals(coord1: Coordinate | null, coord2: Coordinate | null) {
+    return coord1?.x == coord2?.x && coord1?.y == coord2?.y;
+}
+function coordinate_random(x: number, y: number): Coordinate {
     return {
         x: Math.floor(Math.random() * x),
         y: Math.floor(Math.random() * y),
     };
 }
+type searched_cell = {
+    coord: Coordinate;
+    prev_cell: searched_cell | null;
+};
 class Maze {
     readonly height: number;
     readonly width: number;
@@ -61,8 +62,8 @@ class Maze {
         return neighbors;
     }
     public regenerate() {
-        this.start = random_coordinate(this.width, this.height);
-        this.end = random_coordinate(this.width, this.height);
+        this.start = coordinate_random(this.width, this.height);
+        this.end = coordinate_random(this.width, this.height);
         this.maze.length = 0;
         for (let i = 0; i < this.width; i++) {
             const column: MazeCell[] = [];
@@ -89,6 +90,7 @@ const cell_height = canvas.height / maze.height;
 const ctx = canvas.getContext("2d");
 function canvas_refresh() {
     function draw() {
+        console.log("Began to draw");
         if (ctx == undefined) return;
         ctx.fillStyle = "black";
         ctx.fill();
@@ -97,10 +99,8 @@ function canvas_refresh() {
                 let color = "black";
                 if (maze.maze[i][j] == MazeCell.FLOOR) color = "white";
                 else if (maze.maze[i][j] == MazeCell.WALL) color = "black";
-                else if (maze.maze[i][j] == MazeCell.ACTIVE) {
-                    color = "yellow";
-                    maze.maze[i][j] = MazeCell.EXPLORED;
-                } else if (maze.maze[i][j] == MazeCell.EXPLORED) color = "gray";
+                else if (maze.maze[i][j] == MazeCell.ACTIVE) color = "yellow";
+                else if (maze.maze[i][j] == MazeCell.EXPLORED) color = "gray";
                 if (maze.start?.x == i && maze.start?.y == j) color = "green";
                 if (maze.end?.x == i && maze.end?.y == j) color = "red";
 
@@ -109,7 +109,9 @@ function canvas_refresh() {
             }
         }
     }
-    setTimeout(draw, 1);
+    // setTimeout(draw, 1);
+    draw();
+    console.log("finished drawing")
 }
 
 function canvas_draw_path(path_cell: searched_cell) {
@@ -127,33 +129,41 @@ function dfs() {
 function bfs() {
     if (maze.start == null) return;
     let search_frontier: Array<searched_cell> = [{ coord: maze.start, prev_cell: null }];
+    let next_search_frontier: Array<searched_cell> = [];
 
     let search_ended = false;
     let final_searched_cell: searched_cell | null = null;
     while (!search_ended) {
         for (const position of search_frontier) {
+            maze.set_cell_type(position.coord, MazeCell.EXPLORED);
             for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-                if (maze.end == adjacent_position) {
+                if (coordinate_equals(maze.end, adjacent_position)) {
                     final_searched_cell = {
                         coord: adjacent_position,
                         prev_cell: position,
                     };
                 } else if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
                     maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
-                    search_frontier.push({
+                    next_search_frontier.push({
                         coord: adjacent_position,
                         prev_cell: position,
                     });
                 }
             }
         }
-        // Check if goal has been found
+        search_frontier = next_search_frontier;
+        next_search_frontier = [];
+        console.log(search_frontier)
         if (final_searched_cell != null) search_ended = true;
-        // Check if grid has been exhausted
         if (search_frontier.length == 0) search_ended = true;
         canvas_refresh();
     }
-    if (final_searched_cell != null) canvas_draw_path(final_searched_cell);
+    if (final_searched_cell != null) {
+        canvas_draw_path(final_searched_cell);
+        console.log("Found end");
+    } else {
+        console.log("Could not find end")
+    }
 }
 function astar() {
     canvas_refresh();
