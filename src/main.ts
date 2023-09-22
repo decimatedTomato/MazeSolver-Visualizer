@@ -1,8 +1,10 @@
 
-const form = document.getElementById("settings") as HTMLFormElement
+// const form = document.getElementById("settings") as HTMLFormElement
 // const form = document.querySelector<HTMLFormElement>("#settings")
-form?.addEventListener("button", (e) => {
-    e.preventDefault()
+
+const button = document.getElementById("start") as HTMLButtonElement
+button.addEventListener("click", (_e) => {
+    console.log("Pressed")
     if (document.getElementById("dfs")) dfs()
     if (document.getElementById("bfs")) bfs()
     if (document.getElementById("dij")) dijkstra()
@@ -85,19 +87,15 @@ function canvas_refresh() {
 
 function dfs() {
     canvas_refresh()
-    console.log(canvas)
 }
 function bfs() {
     canvas_refresh()
-    console.log(canvas)
 }
 function astar() {
     canvas_refresh()
-    console.log(canvas)
 }
 function dijkstra() {
     canvas_refresh()
-    console.log(canvas)
 }
 
 canvas_refresh()
