@@ -1,12 +1,17 @@
 // const form = document.getElementById("settings") as HTMLFormElement
 // const form = document.querySelector<HTMLFormElement>("#settings")
 
-const button = document.getElementById("start") as HTMLButtonElement;
-button.addEventListener("click", (e) => {
+const button_start = document.getElementById("start") as HTMLButtonElement;
+button_start.addEventListener("click", (_e) => {
+    maze.reload();
     if ((document.getElementById("dfs") as HTMLInputElement).checked) dfs();
     if ((document.getElementById("bfs") as HTMLInputElement).checked) bfs();
     if ((document.getElementById("dij") as HTMLInputElement).checked) dijkstra();
     if ((document.getElementById("a*") as HTMLInputElement).checked) astar();
+});
+const button_regenerate = document.getElementById("regenerate") as HTMLButtonElement;
+button_regenerate.addEventListener("click", (_e) => {
+    maze.regenerate();
 });
 
 enum MazeCell {
@@ -80,6 +85,14 @@ class Maze {
         }
         this.set_cell_type(this.start, MazeCell.EXPLORED);
         this.set_cell_type(this.end, MazeCell.FLOOR);
+    }
+    reload() {
+        for (let i = 0; i < this.width; i++) {
+            for (let j = 0; j < this.height; j++) {
+                if (this.maze[i][j] == MazeCell.ACTIVE || this.maze[i][j] == MazeCell.EXPLORED)
+                    this.set_cell_type({ x: i, y: j }, MazeCell.FLOOR);
+            }
+        }
     }
 }
 
@@ -166,7 +179,7 @@ function bfs() {
         canvas_draw_path(final_searched_cell);
         console.log("Found end");
     } else {
-        console.log("Could not find end")
+        console.log("Could not find end");
     }
 }
 function astar() {
