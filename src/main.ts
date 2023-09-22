@@ -40,6 +40,17 @@ class Maze {
         this.end = null
         this.regenerate()
     }
+    public get_cell_type(coordinate: Coordinate) {
+        return maze.maze[coordinate.x][coordinate.y]
+    }
+    public get_neighboring_coordinates(coordinate: Coordinate) {
+        const neighbors = []
+        if (coordinate.x + 1 <= this.width - 1) neighbors.push( {x: coordinate.x + 1, y: coordinate.y} )
+        if (coordinate.y + 1 <= this.width - 1) neighbors.push( {x: coordinate.x, y: coordinate.y + 1} )
+        if (coordinate.x - 1 >= 0) neighbors.push( {x: coordinate.x - 1, y: coordinate.y} )
+        if (coordinate.y - 1 >= 0) neighbors.push( {x: coordinate.x, y: coordinate.y - 1} )
+        return neighbors
+    }
     public regenerate() {
         this.start = random_coordinate(this.width, this.height)
         this.end = random_coordinate(this.width, this.height)
@@ -86,7 +97,26 @@ function canvas_refresh() {
 }
 
 function dfs() {
-    canvas_refresh()
+    type searched_cell = {
+        coord: Coordinate,
+        prev_cell: Coordinate | null,
+    }
+    if (maze.start == null) return
+    let search_frontier: Array<searched_cell> = [ { coord: maze.start, prev_cell: null } ]
+
+    let search_ended = false
+    while (!search_ended) {
+        for (const position of search_frontier) {
+            for (const adjacent_position of maze.get_neighboring_coordinates(position)) {
+                if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
+                    // Do something
+                }
+            }
+        }
+        // Check if goal has been found
+        // Check if grid has been exhausted
+        canvas_refresh()
+    }
 }
 function bfs() {
     canvas_refresh()
