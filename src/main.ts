@@ -12,6 +12,7 @@ button_start.addEventListener("click", (_e) => {
 const button_regenerate = document.getElementById("regenerate") as HTMLButtonElement;
 button_regenerate.addEventListener("click", (_e) => {
     maze.regenerate();
+    canvas_refresh();
 });
 
 enum MazeCell {
