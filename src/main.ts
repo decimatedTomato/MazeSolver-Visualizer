@@ -90,7 +90,6 @@ const cell_height = canvas.height / maze.height;
 const ctx = canvas.getContext("2d");
 function canvas_refresh() {
     function draw() {
-        console.log("Began to draw");
         if (ctx == undefined) return;
         ctx.fillStyle = "black";
         ctx.fill();
@@ -109,12 +108,11 @@ function canvas_refresh() {
             }
         }
     }
-    // setTimeout(draw, 1);
-    draw();
-    console.log("finished drawing")
+    setTimeout(draw, 0);
 }
 
 function canvas_draw_path(path_cell: searched_cell) {
+    if (path_cell.prev_cell != null) path_cell = path_cell.prev_cell;
     if (ctx == undefined) return;
     ctx.fillStyle = "purple";
     while (path_cell.prev_cell != null) {
@@ -142,6 +140,7 @@ function bfs() {
                         coord: adjacent_position,
                         prev_cell: position,
                     };
+                    break;
                 } else if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
                     maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
                     next_search_frontier.push({
@@ -150,10 +149,15 @@ function bfs() {
                     });
                 }
             }
+            if (final_searched_cell != null) {
+                for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
+                    if (maze.get_cell_type(adjacent_position) == MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
+                }
+                break;
+            }
         }
         search_frontier = next_search_frontier;
         next_search_frontier = [];
-        console.log(search_frontier)
         if (final_searched_cell != null) search_ended = true;
         if (search_frontier.length == 0) search_ended = true;
         canvas_refresh();
