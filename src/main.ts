@@ -98,41 +98,46 @@ class Maze {
 }
 
 const maze = new Maze(40, 20);
+
+const solving_step_delay = 100;
+const drawing_solution_step_delay = 50;
 const canvas = document.getElementById("maze_canvas") as HTMLCanvasElement;
 const cell_width = canvas.width / maze.width;
 const cell_height = canvas.height / maze.height;
 const ctx = canvas.getContext("2d");
 function canvas_refresh() {
-    function draw() {
-        if (ctx == undefined) return;
-        ctx.fillStyle = "black";
-        ctx.fill();
-        for (let i = 0; i < maze.width; i++) {
-            for (let j = 0; j < maze.height; j++) {
-                let color = "black";
-                if (maze.maze[i][j] == MazeCell.FLOOR) color = "white";
-                else if (maze.maze[i][j] == MazeCell.WALL) color = "black";
-                else if (maze.maze[i][j] == MazeCell.ACTIVE) color = "yellow";
-                else if (maze.maze[i][j] == MazeCell.EXPLORED) color = "gray";
-                if (maze.start?.x == i && maze.start?.y == j) color = "green";
-                if (maze.end?.x == i && maze.end?.y == j) color = "red";
+    if (ctx == undefined) return;
+    ctx.fillStyle = "black";
+    ctx.fill();
+    for (let i = 0; i < maze.width; i++) {
+        for (let j = 0; j < maze.height; j++) {
+            let color = "black";
+            if (maze.maze[i][j] == MazeCell.FLOOR) color = "white";
+            else if (maze.maze[i][j] == MazeCell.WALL) color = "black";
+            else if (maze.maze[i][j] == MazeCell.ACTIVE) color = "yellow";
+            else if (maze.maze[i][j] == MazeCell.EXPLORED) color = "gray";
+            if (maze.start?.x == i && maze.start?.y == j) color = "green";
+            if (maze.end?.x == i && maze.end?.y == j) color = "red";
 
-                ctx.fillStyle = color;
-                ctx.fillRect(i * cell_width, j * cell_height, cell_width, cell_height);
-            }
+            ctx.fillStyle = color;
+            ctx.fillRect(i * cell_width, j * cell_height, cell_width, cell_height);
         }
     }
-    setTimeout(draw, 0);
 }
 
 function canvas_draw_path(path_cell: searched_cell) {
     if (path_cell.prev_cell != null) path_cell = path_cell.prev_cell;
     if (ctx == undefined) return;
     ctx.fillStyle = "purple";
-    while (path_cell.prev_cell != null) {
-        ctx.fillRect(path_cell.coord.x * cell_width, path_cell.coord.y * cell_height, cell_width, cell_height);
+    function step() {
+        if (path_cell.prev_cell == null) {
+            clearInterval(interval_code);
+            return;
+        }
+        ctx?.fillRect(path_cell.coord.x * cell_width, path_cell.coord.y * cell_height, cell_width, cell_height);
         path_cell = path_cell.prev_cell;
     }
+    const interval_code = setInterval(step, drawing_solution_step_delay);
 }
 
 function dfs() {
@@ -142,10 +147,10 @@ function bfs() {
     if (maze.start == null) return;
     let search_frontier: Array<searched_cell> = [{ coord: maze.start, prev_cell: null }];
     let next_search_frontier: Array<searched_cell> = [];
-
     let search_ended = false;
     let final_searched_cell: searched_cell | null = null;
-    while (!search_ended) {
+
+    function step() {
         for (const position of search_frontier) {
             maze.set_cell_type(position.coord, MazeCell.EXPLORED);
             for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
@@ -175,13 +180,18 @@ function bfs() {
         if (final_searched_cell != null) search_ended = true;
         if (search_frontier.length == 0) search_ended = true;
         canvas_refresh();
+
+        if (search_ended) {
+            if (final_searched_cell != null) {
+                canvas_draw_path(final_searched_cell);
+                console.log("Found end");
+            } else {
+                console.log("Could not find end");
+            }
+            clearInterval(interval_code);
+        }
     }
-    if (final_searched_cell != null) {
-        canvas_draw_path(final_searched_cell);
-        console.log("Found end");
-    } else {
-        console.log("Could not find end");
-    }
+    const interval_code = setInterval(step, solving_step_delay);
 }
 function astar() {
     canvas_refresh();
