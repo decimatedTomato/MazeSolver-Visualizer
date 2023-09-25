@@ -15,10 +15,10 @@ actually quite a few so I won't list more.
 
 ## TODO
 
+- Make it so that breadth algorithm is appropriately slow
 - Make it so that generated maze is guaranteed to be solvable
 - Add sliders/numberfields to control maze size
 - Add ability to press on tile to change between wall and path
 - Add ability to click and drag around start and end tiles
-- Add audio elements
 - Add speed of visualization slider
 - Add color legend
