@@ -49,14 +49,14 @@ type Coordinate = {
     x: number;
     y: number;
 };
-function manhattan(coord1: Coordinate, coord2: Coordinate) {
+function manhattan_distance(coord1: Coordinate, coord2: Coordinate) {
     return Math.abs(coord1.x - coord2.x) + Math.abs(coord1.y - coord2.y);
 }
-function distance(coord1: Coordinate, coord2: Coordinate) {
+function euclidean_distance(coord1: Coordinate, coord2: Coordinate) {
     return Math.sqrt((coord1.x - coord2.x) * (coord1.x - coord2.x) + (coord1.y - coord2.y) * (coord1.y - coord2.y));
 }
 function coordinate_frequency(coord: Coordinate) {
-    return distance(coord, {x: maze.width, y: maze.height});
+    return euclidean_distance(coord, {x: maze.width, y: maze.height});
 }
 function coordinate_equals(coord1: Coordinate | null, coord2: Coordinate | null) {
     return coord1?.x == coord2?.x && coord1?.y == coord2?.y;
@@ -232,7 +232,7 @@ function gbfs() {
     };
     if (maze.start == null || maze.end == null) return;
     let search_frontier: Array<priority_queue_element> = [
-        { priority: manhattan(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } },
+        { priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } },
     ];
     let search_ended = false;
     let final_searched_cell: searched_cell | null = null;
@@ -255,7 +255,7 @@ function gbfs() {
             } else if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
                 maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
                 if (play_audio) playNote(coordinate_frequency(adjacent_position), solving_step_delay);
-                const priority = manhattan(adjacent_position, maze.end);
+                const priority = manhattan_distance(adjacent_position, maze.end);
                 let index_to_insert = 0;
                 for (const element of search_frontier) {
                     if (element.priority > priority) break;
@@ -292,7 +292,7 @@ function gbfs() {
 function astar() {
     function astar_dist(coord: Coordinate) {
         if (maze.start == null || maze.end == null) return 0;
-        return manhattan(maze.start, coord) + manhattan(maze?.end, coord);
+        return manhattan_distance(maze.start, coord) + manhattan_distance(maze?.end, coord);
     }
     type priority_queue_element = {
         priority: number;
@@ -300,7 +300,7 @@ function astar() {
     };
     if (maze.start == null || maze.end == null) return;
     let search_frontier: Array<priority_queue_element> = [
-        { priority: manhattan(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } },
+        { priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } },
     ];
     let search_ended = false;
     let final_searched_cell: searched_cell | null = null;
