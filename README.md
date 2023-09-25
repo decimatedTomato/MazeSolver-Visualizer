@@ -9,17 +9,17 @@ actually quite a few so I won't list more.
 
 ## DONE
 
-- Ability to display current state of maze on html canvas
-- Ability to press and choose between pathfinding algorithms
 - Ability to generate random maze
+- Multiple maze solving algorithms
+- Visualize steps of solution
 
 ## TODO
 
-- Add pathfinding
-- Add step by step visualization
+- Add A* and djiikstra's algorithms
 - Make it so that generated maze is guaranteed to be solvable
 - Add sliders/numberfields to control maze size
 - Add ability to press on tile to change between wall and path
+- Add ability to click and drag around start and end tiles
 - Add audio elements
 - Add speed of visualization slider
 - Add color legend
