@@ -15,7 +15,6 @@ actually quite a few so I won't list more.
 
 ## TODO
 
-- Add A* and djiikstra's algorithms
 - Make it so that generated maze is guaranteed to be solvable
 - Add sliders/numberfields to control maze size
 - Add ability to press on tile to change between wall and path

@@ -6,7 +6,6 @@ button_start.addEventListener("click", (_e) => {
     maze.reload();
     if ((document.getElementById("bfs") as HTMLInputElement).checked) bfs();
     if ((document.getElementById("gbfs") as HTMLInputElement).checked) gbfs();
-    if ((document.getElementById("dij") as HTMLInputElement).checked) dijkstra();
     if ((document.getElementById("a*") as HTMLInputElement).checked) astar();
 });
 const button_regenerate = document.getElementById("regenerate") as HTMLButtonElement;
@@ -156,6 +155,7 @@ function canvas_refresh() {
         }
     }
 }
+canvas_refresh();
 
 function canvas_draw_path(path_cell: searched_cell) {
     if (path_cell.prev_cell != null) path_cell = path_cell.prev_cell;
@@ -356,8 +356,3 @@ function astar() {
     }
     const interval_code = setInterval(step, solving_step_delay / 2);
 }
-function dijkstra() {
-    canvas_refresh();
-}
-
-canvas_refresh();
