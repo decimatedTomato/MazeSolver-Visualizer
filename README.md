@@ -1,4 +1,10 @@
-# ABOUT
+# HOW TO
+
+1. Install typescript compiler `npm install tsc`
+2. Transpile to javascript `tsc`
+3. Open `index.html` in favorite browser
+
+## ABOUT
 
 I wanted to learn how to use html and typescript in case I need to do some web development down the line.
 For content to put on the webpage for now I will do something I've been wanting to make for a while, a maze solving algorithm visualizer.
@@ -7,7 +13,7 @@ I have seen people do this in the past on youtube:
 - https://www.youtube.com/watch?v=9W8hNdEUFbc&ab_channel=CodeNoodles
 actually quite a few so I won't list more.
 
-## DONE
+## COMPLETED
 
 - Ability to generate random maze
 - Multiple maze solving algorithms
