@@ -28,3 +28,5 @@ actually quite a few so I won't list more.
 - Add ability to click and drag around start and end tiles
 - Add speed of visualization slider
 - Add color legend
+
+- Split across several files, add bundler command to readme, add bundler to dependencies, use interfaces
