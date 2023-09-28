@@ -126,7 +126,8 @@ abstract class MazeSolvingAlgorithm {
      * Begins drawing the maze solving steps until cancelled externally or the algorithm completes execution
      */
     public visualize(): void {
-        const interval_code = setInterval(this.step, this.config.solve_step_delay);
+        this.interval_code = setInterval(() => this.step.call(this), this.config.solve_step_delay); // Disturbing
+        // this.interval_code = setInterval(this.step.call, this.config.solve_step_delay, [this]);
     }
 
     protected playNote(frequency: number, duration: number) {
@@ -148,14 +149,14 @@ abstract class MazeSolvingAlgorithm {
         ctx.fillStyle = "purple";
         const step = () => {
             if (path_cell.prev_cell == null) {
-                clearInterval(interval_code);
+                clearInterval(interval_draw);
                 return;
             }
             ctx?.fillRect(path_cell.coord.x * cell_width, path_cell.coord.y * cell_height, cell_width, cell_height);
             path_cell = path_cell.prev_cell;
             this.playNote(coordinate_frequency(path_cell.coord), this.config.draw_delay); //TODO should be changed to different sound
         };
-        const interval_code = setInterval(step, this.config.draw_delay);
+        const interval_draw = setInterval(step, this.config.draw_delay);
     }
 }
 
@@ -180,17 +181,29 @@ function canvas_refresh(maze: Maze) {
 }
 
 class BFS extends MazeSolvingAlgorithm {
-    search_frontier: Array<searched_cell> = [];
+    
     next_search_frontier: Array<searched_cell> = [];
+    iterator = this.next_search_frontier.values();
 
     constructor(config: Config, maze: Maze) {
         super(config, maze);
-        if (maze.start != null) this.search_frontier = [{ coord: maze.start, prev_cell: null }];
+        if (maze.start != null) this.next_search_frontier = [{ coord: maze.start, prev_cell: null }];
     }
 
     protected step() {
         if (this.interval_code == null) return;
-        for (const position of this.search_frontier) {
+
+        const next = this.iterator.next();
+        let position: searched_cell = next.value;
+        let done = next.done === true;
+        
+        if (done === true) {
+            if (this.next_search_frontier.length == 0) this.search_ended = true;
+            this.iterator = this.next_search_frontier.values();
+            this.next_search_frontier = [];
+            position = this.iterator.next().value;
+        }
+        if (!this.search_ended) {
             maze.set_cell_type(position.coord, MazeCell.EXPLORED);
             for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
                 if (coordinate_equals(maze.end, adjacent_position)) {
@@ -212,16 +225,11 @@ class BFS extends MazeSolvingAlgorithm {
                 for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
                     if (maze.get_cell_type(adjacent_position) == MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
                 }
-                break;
             }
-        }
-        this.search_frontier = this.next_search_frontier;
-        this.next_search_frontier = [];
-        if (this.final_searched_cell != null) this.search_ended = true;
-        if (this.search_frontier.length == 0) this.search_ended = true;
-        canvas_refresh(this.maze);
 
-        if (this.search_ended) {
+            if (this.final_searched_cell != null) this.search_ended = true;
+            canvas_refresh(this.maze);
+        } else {
             if (this.final_searched_cell != null) {
                 this.canvas_draw_path(this.final_searched_cell);
                 console.log("Found end");
@@ -247,8 +255,7 @@ class GBFS extends MazeSolvingAlgorithm {
     }
 
     protected step() {
-        if (maze.end == null) return;
-
+        if (maze.end == null || this.interval_code == null) return;
         const frontier_element = this.search_frontier.shift();
         if (frontier_element == null) return;
         const position = frontier_element.cell;
@@ -295,18 +302,15 @@ class GBFS extends MazeSolvingAlgorithm {
             clearInterval(this.interval_code);
         }
     }
-    interval_code = setInterval(this.step, this.config.solve_step_delay);
 }
 
 class ASTAR extends MazeSolvingAlgorithm {
-    search_frontier: Array<priority_queue_element> = []
-    
+    search_frontier: Array<priority_queue_element> = [];
+
     constructor(config: Config, maze: Maze) {
         super(config, maze);
         if (maze.start == null || maze.end == null) return;
-        this.search_frontier = [
-            { priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } },
-        ];
+        this.search_frontier = [{ priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } }];
     }
 
     private astar_dist(coord: Coordinate) {
@@ -315,7 +319,7 @@ class ASTAR extends MazeSolvingAlgorithm {
     }
 
     protected step() {
-        if (maze.end == null) return;
+        if (maze.end == null || this.interval_code == null) return;
 
         const frontier_element = this.search_frontier.shift();
         if (frontier_element == null) return;
@@ -363,7 +367,6 @@ class ASTAR extends MazeSolvingAlgorithm {
             clearInterval(this.interval_code);
         }
     }
-    interval_code = setInterval(this.step, this.config.solve_step_delay / 2);
 }
 
 // MAIN FUNCTION
@@ -385,6 +388,13 @@ const config: Config = {
         audio_ctx: new (window.AudioContext || window.AudioContext)(),
     },
 };
+const gainNode = config.audio_config?.audio_ctx.createGain();
+if (gainNode != null && config.audio_config?.audio_ctx != null) {
+    // TODO make work, it is still super loud           https://stackoverflow.com/questions/43386277/how-to-control-the-sound-volume-of-audio-buffer-audiocontext
+    gainNode.gain.value = 0.1;
+    gainNode.connect(config.audio_config.audio_ctx.destination);
+}
+config.audio_config = null;
 
 const button_start = document.getElementById("start") as HTMLButtonElement;
 button_start.addEventListener("click", (_e) => {
