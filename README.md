@@ -1,6 +1,6 @@
 # HOW TO
 
-1. Install typescript compiler `npm install tsc`
+1. Install typescript compiler `npm install -g typescript` (You need the node package manager for this obviously)
 2. Transpile to javascript `tsc`
 3. Open `index.html` in favorite browser
 
@@ -18,15 +18,16 @@ actually quite a few so I won't list more.
 - Ability to generate random maze
 - Multiple maze solving algorithms
 - Visualize steps of solution
+- Visualization options
 
 ## TODO
 
-- Make it so that breadth algorithm is appropriately slow
+- Change == to ===, null to undefined, eventlistener to the event in question
+
+- Add stop button functionality
 - Make it so that generated maze is guaranteed to be solvable
-- Add sliders/numberfields to control maze size
 - Add ability to press on tile to change between wall and path
 - Add ability to click and drag around start and end tiles
-- Add speed of visualization slider
 - Add color legend
 
 - Split across several files, add bundler command to readme, add bundler to dependencies, use interfaces

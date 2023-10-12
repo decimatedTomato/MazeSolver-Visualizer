@@ -38,9 +38,9 @@ class Maze {
     start: Coordinate | null;
     end: Coordinate | null;
 
-    constructor(width: number, height: number) {
-        this.height = height;
-        this.width = width;
+    constructor(config: MazeConfig) {
+        this.height = config.grid_height;
+        this.width = config.grid_width;
         this.start = null;
         this.end = null;
         this.regenerate();
@@ -88,15 +88,27 @@ class Maze {
         }
     }
 }
-type Config = {
-    solve_step_delay: number;
-    draw_delay: number;
-    audio_config: {
-        audio_min_frequency: number;
-        audio_range_frequency: number;
-        audio_ctx: AudioContext;
-    } | null;
+type MazeConfig = {
+    grid_width: number;
+    grid_height: number;
 };
+type VisualizationConfig = {
+    max_delay: number;
+    solve_step_speed: number;
+    draw_delay: number;
+    audio_config:
+        | {
+              audio_volume: number;
+              audio_min_frequency: number;
+              audio_range_frequency: number;
+              audio_ctx: AudioContext;
+              gain_node: GainNode;
+          }
+        | undefined;
+};
+function calculate_delay(config: VisualizationConfig) {
+    return config.max_delay / config.solve_step_speed;
+}
 function normalize_audio(frequency: number, config: { audio_min_frequency: number; audio_range_frequency: number }) {
     if (config == null) return 0;
     frequency /= Math.sqrt(maze.width * maze.width + maze.height * maze.height);
@@ -105,7 +117,7 @@ function normalize_audio(frequency: number, config: { audio_min_frequency: numbe
     return frequency;
 }
 abstract class MazeSolvingAlgorithm {
-    readonly config: Config;
+    readonly config: VisualizationConfig;
     readonly maze: Maze;
 
     search_ended: boolean = false;
@@ -113,7 +125,7 @@ abstract class MazeSolvingAlgorithm {
 
     interval_code: number | null = null;
 
-    constructor(visualization_config: Config, maze: Maze) {
+    constructor(visualization_config: VisualizationConfig, maze: Maze) {
         this.config = visualization_config;
         this.maze = maze;
     }
@@ -126,20 +138,22 @@ abstract class MazeSolvingAlgorithm {
      * Begins drawing the maze solving steps until cancelled externally or the algorithm completes execution
      */
     public visualize(): void {
-        this.interval_code = setInterval(() => this.step.call(this), this.config.solve_step_delay); // Disturbing
-        // this.interval_code = setInterval(this.step.call, this.config.solve_step_delay, [this]);
+        this.interval_code = setInterval(() => this.step.call(this), calculate_delay(this.config)); // Disturbing
     }
 
     protected playNote(frequency: number, duration: number) {
-        if (this.config.audio_config == null) return;
+        if (this.config.audio_config == null || this.config.audio_config.gain_node == null) return;
         const oscillator = this.config.audio_config.audio_ctx.createOscillator();
         oscillator.type = "square";
-        oscillator.connect(this.config.audio_config.audio_ctx.destination);
+        oscillator.connect(this.config.audio_config.gain_node);
+        // this.config.audio_config.gain_node?.connect(oscillator);
         oscillator.frequency.value = normalize_audio(frequency, this.config.audio_config);
         oscillator.start();
 
-        setTimeout(function () {
+        setTimeout(() => {
             oscillator.stop();
+            // if (this.config.audio_config == null) return;
+            // oscillator.disconnect(this.config.audio_config.audio_ctx.destination);
         }, duration / 2);
     }
 
@@ -181,11 +195,10 @@ function canvas_refresh(maze: Maze) {
 }
 
 class BFS extends MazeSolvingAlgorithm {
-    
     next_search_frontier: Array<searched_cell> = [];
     iterator = this.next_search_frontier.values();
 
-    constructor(config: Config, maze: Maze) {
+    constructor(config: VisualizationConfig, maze: Maze) {
         super(config, maze);
         if (maze.start != null) this.next_search_frontier = [{ coord: maze.start, prev_cell: null }];
     }
@@ -196,7 +209,7 @@ class BFS extends MazeSolvingAlgorithm {
         const next = this.iterator.next();
         let position: searched_cell = next.value;
         let done = next.done === true;
-        
+
         if (done === true) {
             if (this.next_search_frontier.length == 0) this.search_ended = true;
             this.iterator = this.next_search_frontier.values();
@@ -214,7 +227,7 @@ class BFS extends MazeSolvingAlgorithm {
                     break;
                 } else if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
                     maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
-                    this.playNote(coordinate_frequency(adjacent_position), this.config.solve_step_delay);
+                    this.playNote(coordinate_frequency(adjacent_position), calculate_delay(this.config));
                     this.next_search_frontier.push({
                         coord: adjacent_position,
                         prev_cell: position,
@@ -248,7 +261,7 @@ type priority_queue_element = {
 class GBFS extends MazeSolvingAlgorithm {
     search_frontier: Array<priority_queue_element> = [];
 
-    constructor(config: Config, maze: Maze) {
+    constructor(config: VisualizationConfig, maze: Maze) {
         super(config, maze);
         if (maze.start != null && maze.end != null)
             this.search_frontier = [{ priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } }];
@@ -270,7 +283,7 @@ class GBFS extends MazeSolvingAlgorithm {
                 break;
             } else if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
                 maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
-                this.playNote(coordinate_frequency(adjacent_position), this.config.solve_step_delay);
+                this.playNote(coordinate_frequency(adjacent_position), calculate_delay(this.config));
                 const priority = manhattan_distance(adjacent_position, maze.end);
                 let index_to_insert = 0;
                 for (const element of this.search_frontier) {
@@ -307,7 +320,7 @@ class GBFS extends MazeSolvingAlgorithm {
 class ASTAR extends MazeSolvingAlgorithm {
     search_frontier: Array<priority_queue_element> = [];
 
-    constructor(config: Config, maze: Maze) {
+    constructor(config: VisualizationConfig, maze: Maze) {
         super(config, maze);
         if (maze.start == null || maze.end == null) return;
         this.search_frontier = [{ priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } }];
@@ -335,7 +348,7 @@ class ASTAR extends MazeSolvingAlgorithm {
                 break;
             } else if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
                 maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
-                this.playNote(coordinate_frequency(adjacent_position), this.config.solve_step_delay);
+                this.playNote(coordinate_frequency(adjacent_position), calculate_delay(this.config));
                 const priority = this.astar_dist(adjacent_position);
                 let index_to_insert = 0;
                 for (const element of this.search_frontier) {
@@ -371,30 +384,29 @@ class ASTAR extends MazeSolvingAlgorithm {
 
 // MAIN FUNCTION
 
-const maze = new Maze(40, 20);
+const maze_config: MazeConfig = { grid_width: 40, grid_height: 20 };
+let maze = new Maze(maze_config);
 
 const canvas = document.getElementById("maze_canvas") as HTMLCanvasElement;
-const cell_width = canvas.width / maze.width;
-const cell_height = canvas.height / maze.height;
+const cell_width = 15;
+const cell_height = 15;
 const ctx = canvas.getContext("2d");
 const audio = document.createElement("AUDIO") as HTMLAudioElement;
-
-const config: Config = {
-    solve_step_delay: 100,
+const audio_context = new (window.AudioContext || window.AudioContext)();
+const config: VisualizationConfig = {
+    max_delay: 50,
+    solve_step_speed: 0.5,
     draw_delay: 50,
     audio_config: {
-        audio_min_frequency: 1000,
-        audio_range_frequency: 1000,
-        audio_ctx: new (window.AudioContext || window.AudioContext)(),
+        audio_volume: 50,
+        audio_min_frequency: 200,
+        audio_range_frequency: 100,
+        audio_ctx: audio_context,
+        gain_node: audio_context.createGain(),
     },
 };
-const gainNode = config.audio_config?.audio_ctx.createGain();
-if (gainNode != null && config.audio_config?.audio_ctx != null) {
-    // TODO make work, it is still super loud           https://stackoverflow.com/questions/43386277/how-to-control-the-sound-volume-of-audio-buffer-audiocontext
-    gainNode.gain.value = 0.1;
-    gainNode.connect(config.audio_config.audio_ctx.destination);
-}
-config.audio_config = null;
+config.audio_config?.gain_node.gain.setValueAtTime(0.1, 0);
+config.audio_config?.gain_node.connect(config.audio_config.audio_ctx.destination);
 
 const button_start = document.getElementById("start") as HTMLButtonElement;
 button_start.addEventListener("click", (_e) => {
@@ -405,10 +417,73 @@ button_start.addEventListener("click", (_e) => {
     if ((document.getElementById("a*") as HTMLInputElement).checked) alg = new ASTAR(config, maze);
     if (alg != null) alg.visualize();
 });
-const button_regenerate = document.getElementById("regenerate") as HTMLButtonElement;
-button_regenerate.addEventListener("click", (_e) => {
-    maze.regenerate();
-    canvas_refresh(maze);
+const button_stop = document.getElementById("stop") as HTMLInputElement;
+button_stop.addEventListener("click", (_e) => {
+    //TODO add stop
 });
+const button_regenerate = document.getElementById("regenerate") as HTMLButtonElement;
+button_regenerate.onclick = function () {
+    maze = new Maze(maze_config);
+    canvas.width = maze.width * cell_width;
+    canvas.height = maze.height * cell_height;
+    canvas_refresh(maze);
+};
+
+const textfield_volume = document.getElementById("text volume") as HTMLInputElement;
+const range_volume = document.getElementById("range volume") as HTMLInputElement;
+if (config.audio_config !== undefined) textfield_volume.value = config.audio_config.audio_volume.toString();
+textfield_volume.oninput = function () {
+    if (config.audio_config == undefined) return;
+    const new_value = Math.min(Math.max(Number(textfield_volume.value), 0), 100);
+    config.audio_config.audio_volume = new_value;
+    range_volume.value = new_value.toString();
+    textfield_volume.value = new_value.toString();
+};
+range_volume.oninput = function () {
+    if (config.audio_config !== undefined) config.audio_config.audio_volume = Number(range_volume.value);
+    textfield_volume.value = range_volume.value;
+};
+
+const textfield_speed = document.getElementById("text speed") as HTMLInputElement;
+const range_speed = document.getElementById("range speed") as HTMLInputElement;
+textfield_speed.value = config.solve_step_speed.toString();
+textfield_speed.oninput = function () {
+    const new_value = Math.min(Math.max(Number(textfield_speed.value), 0), 1);
+    config.solve_step_speed = new_value;
+    range_speed.value = new_value.toString();
+    textfield_speed.value = new_value.toFixed(2).toString();
+};
+range_speed.oninput = function () {
+    config.solve_step_speed = Number(range_speed.value);
+    textfield_speed.value = Number(range_speed.value).toFixed(2).toString();
+};
+
+const textfield_grid_width = document.getElementById("text grid width") as HTMLInputElement;
+const range_grid_width = document.getElementById("range grid width") as HTMLInputElement;
+textfield_grid_width.value = maze_config.grid_width.toString();
+textfield_grid_width.oninput = function () {
+    const new_value = Math.min(Math.max(Number(textfield_grid_width.value), 4), 100);
+    maze_config.grid_width = new_value;
+    range_grid_width.value = new_value.toString();
+    textfield_grid_width.value = new_value.toString();
+};
+range_grid_width.oninput = function () {
+    maze_config.grid_width = Number(range_grid_width.value);
+    textfield_grid_width.value = range_grid_width.value;
+};
+
+const textfield_grid_height = document.getElementById("text grid height") as HTMLInputElement;
+const range_grid_height = document.getElementById("range grid height") as HTMLInputElement;
+textfield_grid_height.value = maze_config.grid_height.toString();
+textfield_grid_height.oninput = function () {
+    const new_value = Math.min(Math.max(Number(textfield_grid_height.value), 4), 100);
+    maze_config.grid_height = new_value;
+    range_grid_height.value = new_value.toString();
+    textfield_grid_height.value = new_value.toString();
+};
+range_grid_height.oninput = function () {
+    maze_config.grid_height = Number(range_grid_height.value);
+    textfield_grid_height.value = range_grid_height.value;
+};
 
 canvas_refresh(maze);
