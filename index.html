@@ -11,14 +11,33 @@
     <!--UI-->
     <h1>Path Finding Visualization</h1>
     <form id="settings">
-      <input type="radio" id="bfs" name="path_algorithm" value="Breadth First Search">
-      <label for="bfs">Breadth First Search</label><br>
-      <input type="radio" id="gbfs" name="path_algorithm" value="Greedy Best First Search">
-      <label for="gbfs">Greedy Best First Search</label><br>
-      <input type="radio" id="a*" name="path_algorithm" value="A*">
-      <label for="a*">A*</label><br>
+      <p>
+        <label for="volume">Volume</label>
+        <input type="range" id="range volume" min="0" max="100" value="50" class="slider">
+        <input type="text" id="text volume" name="name" required minlength="4" maxlength="8" size="10"/><br>
+        <label for="speed">Simulation Speed</label>
+        <input type="range" id="range speed" min="0.01" max="1" value="0.5" class="slider" step="any">
+        <input type="text" id="text speed" name="name" required minlength="4" maxlength="8" size="10"/><br>
+        
+        <label for="grid width">Grid Width</label>
+        <input type="range" id="range grid width" min="4" max="100" value="40" class="slider">
+        <input type="text" id="text grid width" name="name" required minlength="4" maxlength="8" size="10"/><br>
+        <label for="grid height">Grid Height</label>
+        <input type="range" id="range grid height" min="4" max="100" value="20" class="slider">
+        <input type="text" id="text grid height" name="name" required minlength="4" maxlength="8" size="10"/><br>
+      </p>
+      <p>
+        <input type="radio" id="bfs" name="path_algorithm" value="Breadth First Search">
+        <label for="bfs">Breadth First Search</label><br>
+        <input type="radio" id="gbfs" name="path_algorithm" value="Greedy Best First Search">
+        <label for="gbfs">Greedy Best First Search</label><br>
+        <input type="radio" id="a*" name="path_algorithm" value="A*">
+        <label for="a*">A*</label><br>
+      </p>
 
       <button type="button" id ="start">Start</button>
+      <button type="button" id ="stop">Stop</button>
+      
       <button type="button" id ="regenerate">Regenerate</button>
     </form>
     <p></p>
