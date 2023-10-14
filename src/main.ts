@@ -17,8 +17,8 @@ function euclidean_distance(coord1: Coordinate, coord2: Coordinate) {
 function coordinate_frequency(coord: Coordinate) {
     return euclidean_distance(coord, { x: maze.width, y: maze.height });
 }
-function coordinate_equals(coord1: Coordinate | null, coord2: Coordinate | null) {
-    return coord1?.x == coord2?.x && coord1?.y == coord2?.y;
+function coordinate_equals(coord1: Coordinate | undefined, coord2: Coordinate | undefined) {
+    return coord1?.x === coord2?.x && coord1?.y === coord2?.y;
 }
 function coordinate_random(x: number, y: number): Coordinate {
     return {
@@ -28,21 +28,21 @@ function coordinate_random(x: number, y: number): Coordinate {
 }
 type searched_cell = {
     coord: Coordinate;
-    prev_cell: searched_cell | null;
+    prev_cell: searched_cell | undefined;
 };
 class Maze {
     readonly height: number;
     readonly width: number;
     readonly floor_likelihood = 0.6;
     readonly maze: MazeCell[][] = [];
-    start: Coordinate | null;
-    end: Coordinate | null;
+    start: Coordinate | undefined;
+    end: Coordinate | undefined;
 
     constructor(config: MazeConfig) {
         this.height = config.grid_height;
         this.width = config.grid_width;
-        this.start = null;
-        this.end = null;
+        this.start = undefined;
+        this.end = undefined;
         this.regenerate();
     }
     public get_cell_type(coordinate: Coordinate) {
@@ -79,7 +79,7 @@ class Maze {
         this.set_cell_type(this.start, MazeCell.EXPLORED);
         this.set_cell_type(this.end, MazeCell.FLOOR);
     }
-    reload() {
+    public reload() {
         for (let i = 0; i < this.width; i++) {
             for (let j = 0; j < this.height; j++) {
                 if (this.maze[i][j] == MazeCell.ACTIVE || this.maze[i][j] == MazeCell.EXPLORED)
@@ -93,6 +93,8 @@ type MazeConfig = {
     grid_height: number;
 };
 type VisualizationConfig = {
+    is_paused: boolean;
+    alg: MazeSolvingAlgorithm | undefined;
     max_delay: number;
     solve_step_speed: number;
     draw_delay: number;
@@ -110,7 +112,7 @@ function calculate_delay(config: VisualizationConfig) {
     return config.max_delay / config.solve_step_speed;
 }
 function normalize_audio(frequency: number, config: { audio_min_frequency: number; audio_range_frequency: number }) {
-    if (config == null) return 0;
+    if (config == undefined) return 0;
     frequency /= Math.sqrt(maze.width * maze.width + maze.height * maze.height);
     frequency *= config.audio_range_frequency;
     frequency += config.audio_min_frequency;
@@ -121,9 +123,9 @@ abstract class MazeSolvingAlgorithm {
     readonly maze: Maze;
 
     search_ended: boolean = false;
-    final_searched_cell: searched_cell | null = null;
+    final_searched_cell: searched_cell | undefined = undefined;
 
-    interval_code: number | null = null;
+    interval_code: number | undefined = undefined;
 
     constructor(visualization_config: VisualizationConfig, maze: Maze) {
         this.config = visualization_config;
@@ -133,16 +135,18 @@ abstract class MazeSolvingAlgorithm {
      * Progresses the algorithm solution by 1 step, modifying the maze and producing sound appropriately
      */
     protected abstract step(): void;
-
+    
     /**
      * Begins drawing the maze solving steps until cancelled externally or the algorithm completes execution
      */
     public visualize(): void {
-        this.interval_code = setInterval(() => this.step.call(this), calculate_delay(this.config)); // Disturbing
+        this.interval_code = setInterval(() => {
+            if (this.config.alg !== undefined) this.config.alg.step.call(this), calculate_delay(this.config)
+        }); // Disturbing
     }
 
     protected playNote(frequency: number, duration: number) {
-        if (this.config.audio_config == null || this.config.audio_config.gain_node == null) return;
+        if (this.config.audio_config === undefined || this.config.audio_config.gain_node === undefined) return;
         const oscillator = this.config.audio_config.audio_ctx.createOscillator();
         oscillator.type = "square";
         oscillator.connect(this.config.audio_config.gain_node);
@@ -152,17 +156,17 @@ abstract class MazeSolvingAlgorithm {
 
         setTimeout(() => {
             oscillator.stop();
-            // if (this.config.audio_config == null) return;
+            // if (this.config.audio_config === undefined) return;
             // oscillator.disconnect(this.config.audio_config.audio_ctx.destination);
         }, duration / 2);
     }
 
     protected canvas_draw_path(path_cell: searched_cell) {
-        if (path_cell.prev_cell != null) path_cell = path_cell.prev_cell;
-        if (ctx == undefined) return;
+        if (path_cell.prev_cell !== undefined) path_cell = path_cell.prev_cell;
+        if (ctx === null) return;
         ctx.fillStyle = "purple";
-        const step = () => {
-            if (path_cell.prev_cell == null) {
+        const draw_step = () => {
+            if (path_cell.prev_cell === undefined) {
                 clearInterval(interval_draw);
                 return;
             }
@@ -170,23 +174,23 @@ abstract class MazeSolvingAlgorithm {
             path_cell = path_cell.prev_cell;
             this.playNote(coordinate_frequency(path_cell.coord), this.config.draw_delay); //TODO should be changed to different sound
         };
-        const interval_draw = setInterval(step, this.config.draw_delay);
+        const interval_draw = setInterval(draw_step, this.config.draw_delay);
     }
 }
 
 function canvas_refresh(maze: Maze) {
-    if (ctx == undefined) return;
+    if (ctx === null) return;
     ctx.fillStyle = "black";
     ctx.fill();
     for (let i = 0; i < maze.width; i++) {
         for (let j = 0; j < maze.height; j++) {
             let color = "black";
-            if (maze.maze[i][j] == MazeCell.FLOOR) color = "white";
-            else if (maze.maze[i][j] == MazeCell.WALL) color = "black";
-            else if (maze.maze[i][j] == MazeCell.ACTIVE) color = "yellow";
-            else if (maze.maze[i][j] == MazeCell.EXPLORED) color = "gray";
-            if (maze.start?.x == i && maze.start?.y == j) color = "green";
-            if (maze.end?.x == i && maze.end?.y == j) color = "red";
+            if (maze.maze[i][j] === MazeCell.FLOOR) color = "white";
+            else if (maze.maze[i][j] === MazeCell.WALL) color = "black";
+            else if (maze.maze[i][j] === MazeCell.ACTIVE) color = "yellow";
+            else if (maze.maze[i][j] === MazeCell.EXPLORED) color = "gray";
+            if (maze.start?.x === i && maze.start?.y === j) color = "green";
+            if (maze.end?.x === i && maze.end?.y === j) color = "red";
 
             ctx.fillStyle = color;
             ctx.fillRect(i * cell_width, j * cell_height, cell_width, cell_height);
@@ -200,18 +204,19 @@ class BFS extends MazeSolvingAlgorithm {
 
     constructor(config: VisualizationConfig, maze: Maze) {
         super(config, maze);
-        if (maze.start != null) this.next_search_frontier = [{ coord: maze.start, prev_cell: null }];
+        if (maze.start !== undefined) this.next_search_frontier = [{ coord: maze.start, prev_cell: undefined }];
     }
 
     protected step() {
-        if (this.interval_code == null) return;
+        if (this.interval_code === undefined) return;
+        if (config.is_paused) return;
 
         const next = this.iterator.next();
         let position: searched_cell = next.value;
         let done = next.done === true;
 
         if (done === true) {
-            if (this.next_search_frontier.length == 0) this.search_ended = true;
+            if (this.next_search_frontier.length === 0) this.search_ended = true;
             this.iterator = this.next_search_frontier.values();
             this.next_search_frontier = [];
             position = this.iterator.next().value;
@@ -225,7 +230,7 @@ class BFS extends MazeSolvingAlgorithm {
                         prev_cell: position,
                     };
                     break;
-                } else if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
+                } else if (maze.get_cell_type(adjacent_position) === MazeCell.FLOOR) {
                     maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
                     this.playNote(coordinate_frequency(adjacent_position), calculate_delay(this.config));
                     this.next_search_frontier.push({
@@ -234,16 +239,16 @@ class BFS extends MazeSolvingAlgorithm {
                     });
                 }
             }
-            if (this.final_searched_cell != null) {
+            if (this.final_searched_cell !== undefined) {
                 for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-                    if (maze.get_cell_type(adjacent_position) == MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
+                    if (maze.get_cell_type(adjacent_position) === MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
                 }
             }
 
-            if (this.final_searched_cell != null) this.search_ended = true;
+            if (this.final_searched_cell !== undefined) this.search_ended = true;
             canvas_refresh(this.maze);
         } else {
-            if (this.final_searched_cell != null) {
+            if (this.final_searched_cell !== undefined) {
                 this.canvas_draw_path(this.final_searched_cell);
                 console.log("Found end");
             } else {
@@ -263,14 +268,16 @@ class GBFS extends MazeSolvingAlgorithm {
 
     constructor(config: VisualizationConfig, maze: Maze) {
         super(config, maze);
-        if (maze.start != null && maze.end != null)
-            this.search_frontier = [{ priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } }];
+        if (maze.start !== undefined && maze.end !== undefined)
+            this.search_frontier = [{ priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: undefined } }];
     }
 
     protected step() {
-        if (maze.end == null || this.interval_code == null) return;
+        if (maze.end === undefined || this.interval_code === undefined) return;
+        if (config.is_paused) return;
+
         const frontier_element = this.search_frontier.shift();
-        if (frontier_element == null) return;
+        if (frontier_element === undefined) return;
         const position = frontier_element.cell;
         maze.set_cell_type(position.coord, MazeCell.EXPLORED);
 
@@ -281,7 +288,7 @@ class GBFS extends MazeSolvingAlgorithm {
                     prev_cell: position,
                 };
                 break;
-            } else if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
+            } else if (maze.get_cell_type(adjacent_position) === MazeCell.FLOOR) {
                 maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
                 this.playNote(coordinate_frequency(adjacent_position), calculate_delay(this.config));
                 const priority = manhattan_distance(adjacent_position, maze.end);
@@ -296,17 +303,17 @@ class GBFS extends MazeSolvingAlgorithm {
                 });
             }
         }
-        if (this.final_searched_cell != null) {
+        if (this.final_searched_cell !== undefined) {
             for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-                if (maze.get_cell_type(adjacent_position) == MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
+                if (maze.get_cell_type(adjacent_position) === MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
             }
         }
-        if (this.final_searched_cell != null) this.search_ended = true;
+        if (this.final_searched_cell !== undefined) this.search_ended = true;
         if (this.search_frontier.length == 0) this.search_ended = true;
         canvas_refresh(this.maze);
 
         if (this.search_ended) {
-            if (this.final_searched_cell != null) {
+            if (this.final_searched_cell !== undefined) {
                 this.canvas_draw_path(this.final_searched_cell);
                 console.log("Found end");
             } else {
@@ -322,20 +329,21 @@ class ASTAR extends MazeSolvingAlgorithm {
 
     constructor(config: VisualizationConfig, maze: Maze) {
         super(config, maze);
-        if (maze.start == null || maze.end == null) return;
-        this.search_frontier = [{ priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: null } }];
+        if (maze.start === undefined || maze.end === undefined) return;
+        this.search_frontier = [{ priority: manhattan_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: undefined } }];
     }
 
     private astar_dist(coord: Coordinate) {
-        if (maze.start == null || maze.end == null) return 0;
+        if (maze.start === undefined || maze.end === undefined) return 0;
         return manhattan_distance(maze.start, coord) + manhattan_distance(maze.end, coord);
     }
 
     protected step() {
-        if (maze.end == null || this.interval_code == null) return;
+        if (maze.end === undefined || this.interval_code === undefined) return;
+        if (config.is_paused) return;
 
         const frontier_element = this.search_frontier.shift();
-        if (frontier_element == null) return;
+        if (frontier_element === undefined) return;
         const position = frontier_element.cell;
         maze.set_cell_type(position.coord, MazeCell.EXPLORED);
 
@@ -346,7 +354,7 @@ class ASTAR extends MazeSolvingAlgorithm {
                     prev_cell: position,
                 };
                 break;
-            } else if (maze.get_cell_type(adjacent_position) == MazeCell.FLOOR) {
+            } else if (maze.get_cell_type(adjacent_position) === MazeCell.FLOOR) {
                 maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
                 this.playNote(coordinate_frequency(adjacent_position), calculate_delay(this.config));
                 const priority = this.astar_dist(adjacent_position);
@@ -361,17 +369,17 @@ class ASTAR extends MazeSolvingAlgorithm {
                 });
             }
         }
-        if (this.final_searched_cell != null) {
+        if (this.final_searched_cell !== undefined) {
             for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-                if (maze.get_cell_type(adjacent_position) == MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
+                if (maze.get_cell_type(adjacent_position) === MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
             }
         }
-        if (this.final_searched_cell != null) this.search_ended = true;
-        if (this.search_frontier.length == 0) this.search_ended = true;
+        if (this.final_searched_cell !== undefined) this.search_ended = true;
+        if (this.search_frontier.length === 0) this.search_ended = true;
         canvas_refresh(this.maze);
 
         if (this.search_ended) {
-            if (this.final_searched_cell != null) {
+            if (this.final_searched_cell !== undefined) {
                 this.canvas_draw_path(this.final_searched_cell);
                 console.log("Found end");
             } else {
@@ -394,6 +402,8 @@ const ctx = canvas.getContext("2d");
 const audio = document.createElement("AUDIO") as HTMLAudioElement;
 const audio_context = new (window.AudioContext || window.AudioContext)();
 const config: VisualizationConfig = {
+    is_paused: true,
+    alg: undefined,
     max_delay: 50,
     solve_step_speed: 0.5,
     draw_delay: 50,
@@ -409,20 +419,38 @@ config.audio_config?.gain_node.gain.setValueAtTime(0.1, 0);
 config.audio_config?.gain_node.connect(config.audio_config.audio_ctx.destination);
 
 const button_start = document.getElementById("start") as HTMLButtonElement;
-button_start.addEventListener("click", (_e) => {
+button_start.onclick = function() {
+    // Unpause
+    if (config.is_paused && config.alg !== undefined) {
+        config.is_paused = false;
+        return;
+    }
+    // Redo visualization
+    if (config.alg !== undefined) {
+        config.alg.search_ended = true;
+        clearInterval(config.alg.interval_code);
+    }
+    config.alg = undefined;
     maze.reload();
-    let alg: MazeSolvingAlgorithm | null = null;
+    let alg: MazeSolvingAlgorithm | undefined = undefined;
     if ((document.getElementById("bfs") as HTMLInputElement).checked) alg = new BFS(config, maze);
     if ((document.getElementById("gbfs") as HTMLInputElement).checked) alg = new GBFS(config, maze);
     if ((document.getElementById("a*") as HTMLInputElement).checked) alg = new ASTAR(config, maze);
-    if (alg != null) alg.visualize();
-});
+    config.alg = alg;
+    if (alg !== undefined) alg.visualize();
+}
 const button_stop = document.getElementById("stop") as HTMLInputElement;
-button_stop.addEventListener("click", (_e) => {
-    //TODO add stop
-});
+button_stop.onclick = function() {
+    config.is_paused = true;
+}
 const button_regenerate = document.getElementById("regenerate") as HTMLButtonElement;
 button_regenerate.onclick = function () {
+    // End the algorithm prematurely so that it can be garbage collected
+    if (config.alg !== undefined) {
+        config.alg.search_ended = true;
+        clearInterval(config.alg.interval_code);
+    }
+    config.alg = undefined;
     maze = new Maze(maze_config);
     canvas.width = maze.width * cell_width;
     canvas.height = maze.height * cell_height;
@@ -432,8 +460,8 @@ button_regenerate.onclick = function () {
 const textfield_volume = document.getElementById("text volume") as HTMLInputElement;
 const range_volume = document.getElementById("range volume") as HTMLInputElement;
 if (config.audio_config !== undefined) textfield_volume.value = config.audio_config.audio_volume.toString();
-textfield_volume.oninput = function () {
-    if (config.audio_config == undefined) return;
+textfield_volume.onchange = function () {
+    if (config.audio_config === undefined) return;
     const new_value = Math.min(Math.max(Number(textfield_volume.value), 0), 100);
     config.audio_config.audio_volume = new_value;
     range_volume.value = new_value.toString();
@@ -447,7 +475,7 @@ range_volume.oninput = function () {
 const textfield_speed = document.getElementById("text speed") as HTMLInputElement;
 const range_speed = document.getElementById("range speed") as HTMLInputElement;
 textfield_speed.value = config.solve_step_speed.toString();
-textfield_speed.oninput = function () {
+textfield_speed.onchange = function () {
     const new_value = Math.min(Math.max(Number(textfield_speed.value), 0), 1);
     config.solve_step_speed = new_value;
     range_speed.value = new_value.toString();
@@ -461,7 +489,7 @@ range_speed.oninput = function () {
 const textfield_grid_width = document.getElementById("text grid width") as HTMLInputElement;
 const range_grid_width = document.getElementById("range grid width") as HTMLInputElement;
 textfield_grid_width.value = maze_config.grid_width.toString();
-textfield_grid_width.oninput = function () {
+textfield_grid_width.onchange = function () {
     const new_value = Math.min(Math.max(Number(textfield_grid_width.value), 4), 100);
     maze_config.grid_width = new_value;
     range_grid_width.value = new_value.toString();
@@ -475,7 +503,7 @@ range_grid_width.oninput = function () {
 const textfield_grid_height = document.getElementById("text grid height") as HTMLInputElement;
 const range_grid_height = document.getElementById("range grid height") as HTMLInputElement;
 textfield_grid_height.value = maze_config.grid_height.toString();
-textfield_grid_height.oninput = function () {
+textfield_grid_height.onchange = function () {
     const new_value = Math.min(Math.max(Number(textfield_grid_height.value), 4), 100);
     maze_config.grid_height = new_value;
     range_grid_height.value = new_value.toString();

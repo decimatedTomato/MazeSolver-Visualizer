@@ -22,9 +22,9 @@ actually quite a few so I won't list more.
 
 ## TODO
 
-- Change == to ===, null to undefined, eventlistener to the event in question
+- Fix simulation speed being out of control
 
-- Add stop button functionality
+- Make volume slider affect volume
 - Make it so that generated maze is guaranteed to be solvable
 - Add ability to press on tile to change between wall and path
 - Add ability to click and drag around start and end tiles
