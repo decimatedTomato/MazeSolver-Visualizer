@@ -140,9 +140,20 @@ abstract class MazeSolvingAlgorithm {
      * Begins drawing the maze solving steps until cancelled externally or the algorithm completes execution
      */
     public visualize(): void {
+        this.config.is_paused = false;
         this.interval_code = setInterval(() => {
-            if (this.config.alg !== undefined) this.config.alg.step.call(this), calculate_delay(this.config)
-        }); // Disturbing
+            if (this.config.alg !== undefined) this.config.alg.step.call(this); // Disturbing
+        }, calculate_delay(this.config));
+    }
+    
+    /**
+     * Makes sure that the visualization interval is set to the most recent rate supplied by the user
+     */
+    public update_visualize_interval() {
+        clearInterval(this.interval_code);
+        this.interval_code = setInterval(() => {
+            if (this.config.alg !== undefined) this.config.alg.step.call(this);
+        }, calculate_delay(this.config));
     }
 
     protected playNote(frequency: number, duration: number) {
@@ -170,9 +181,9 @@ abstract class MazeSolvingAlgorithm {
                 clearInterval(interval_draw);
                 return;
             }
-            ctx?.fillRect(path_cell.coord.x * cell_width, path_cell.coord.y * cell_height, cell_width, cell_height);
+            ctx.fillRect(path_cell.coord.x * cell_width, path_cell.coord.y * cell_height, cell_width, cell_height);
             path_cell = path_cell.prev_cell;
-            this.playNote(coordinate_frequency(path_cell.coord), this.config.draw_delay); //TODO should be changed to different sound
+            this.playNote(coordinate_frequency(path_cell.coord), this.config.draw_delay);
         };
         const interval_draw = setInterval(draw_step, this.config.draw_delay);
     }
@@ -429,15 +440,14 @@ button_start.onclick = function() {
     if (config.alg !== undefined) {
         config.alg.search_ended = true;
         clearInterval(config.alg.interval_code);
+        config.alg = undefined;
+        maze.reload();
     }
-    config.alg = undefined;
-    maze.reload();
-    let alg: MazeSolvingAlgorithm | undefined = undefined;
-    if ((document.getElementById("bfs") as HTMLInputElement).checked) alg = new BFS(config, maze);
-    if ((document.getElementById("gbfs") as HTMLInputElement).checked) alg = new GBFS(config, maze);
-    if ((document.getElementById("a*") as HTMLInputElement).checked) alg = new ASTAR(config, maze);
-    config.alg = alg;
-    if (alg !== undefined) alg.visualize();
+    // Normal start
+    if ((document.getElementById("bfs") as HTMLInputElement).checked) config.alg = new BFS(config, maze);
+    if ((document.getElementById("gbfs") as HTMLInputElement).checked) config.alg = new GBFS(config, maze);
+    if ((document.getElementById("a*") as HTMLInputElement).checked) config.alg = new ASTAR(config, maze);
+    if (config.alg !== undefined) config.alg.visualize();
 }
 const button_stop = document.getElementById("stop") as HTMLInputElement;
 button_stop.onclick = function() {
@@ -478,12 +488,14 @@ textfield_speed.value = config.solve_step_speed.toString();
 textfield_speed.onchange = function () {
     const new_value = Math.min(Math.max(Number(textfield_speed.value), 0), 1);
     config.solve_step_speed = new_value;
+    config.alg?.update_visualize_interval()
     range_speed.value = new_value.toString();
     textfield_speed.value = new_value.toFixed(2).toString();
 };
 range_speed.oninput = function () {
     config.solve_step_speed = Number(range_speed.value);
     textfield_speed.value = Number(range_speed.value).toFixed(2).toString();
+    config.alg?.update_visualize_interval()
 };
 
 const textfield_grid_width = document.getElementById("text grid width") as HTMLInputElement;

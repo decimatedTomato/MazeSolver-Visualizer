@@ -22,12 +22,12 @@ actually quite a few so I won't list more.
 
 ## TODO
 
-- Fix simulation speed being out of control
-
 - Make volume slider affect volume
 - Make it so that generated maze is guaranteed to be solvable
 - Add ability to press on tile to change between wall and path
 - Add ability to click and drag around start and end tiles
 - Add color legend
+
+- Fix sound sometimes not playing
 
 - Split across several files, add bundler command to readme, add bundler to dependencies, use interfaces
