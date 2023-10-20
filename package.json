@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "tsc --watch",
-    "build": "esbuild src/* --bundle",
+    "build": "esbuild src/* --bundle --outdir=dist/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

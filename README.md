@@ -1,7 +1,7 @@
 # HOW TO
 
 1. Install typescript compiler `npm install -g typescript` (You need the node package manager for this obviously)
-2. Transpile to javascript `tsc`
+2. Transpile to javascript using bundler `npm run build`
 3. Open `index.html` in favorite browser
 
 ## ABOUT
@@ -24,8 +24,12 @@ actually quite a few so I won't list more.
 ## TODO
 
 - Make it so that generated maze is guaranteed to be solvable
+- Add more algs including:
+    - uniform cost search
+    - depth-limited search
+    - iterative deepening search
+    - Bi-directional search 
 - Add color legend
 
-- Fix sound sometimes not playing
-
-- Split across several files, add bundler command to readme, add bundler to dependencies
+- Figure out why canvas does not refresh while dragging mouse until mouseup
+- Figure out why sound is sometimes not playing

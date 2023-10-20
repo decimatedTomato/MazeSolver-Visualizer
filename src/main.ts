@@ -1,3 +1,6 @@
+import { MazeSolvingAlgorithm, GBFS, BFS, ASTAR } from "./solving_algorithm";
+export { Coordinate, canvas_refresh, config, maze, coordinate_equals, ctx, euclidean_distance, cell_width, cell_height, calculate_delay, coordinate_frequency, normalize_audio, VisualizationConfig, Maze, MazeCell, searched_cell };
+
 enum MazeCell {
     FLOOR,
     WALL,
@@ -49,6 +52,7 @@ class Maze {
         return this.maze[coordinate.x][coordinate.y];
     }
     public set_cell_type(coordinate: Coordinate, cell_type: MazeCell) {
+        if (coordinate_equals(this.start, coordinate) || coordinate_equals(this.end, coordinate)) return;
         this.maze[coordinate.x][coordinate.y] = cell_type;
     }
     public get_neighboring_coordinates(coordinate: Coordinate) {
@@ -95,6 +99,7 @@ type ClickEvent = {
     current_nearest_coordinate: Coordinate;
     is_dragging_start: boolean;
     is_dragging_end: boolean;
+    brush_type: MazeCell;
 };
 type MazeConfig = {
     grid_width: number;
@@ -129,73 +134,6 @@ function normalize_audio(frequency: number, config: { audio_min_frequency: numbe
     frequency *= config.audio_range_frequency;
     frequency += config.audio_min_frequency;
     return frequency;
-}
-abstract class MazeSolvingAlgorithm {
-    readonly config: VisualizationConfig;
-    readonly maze: Maze;
-
-    search_ended: boolean = false;
-    final_searched_cell: searched_cell | undefined = undefined;
-
-    interval_code: number | undefined = undefined;
-
-    constructor(visualization_config: VisualizationConfig, maze: Maze) {
-        this.config = visualization_config;
-        this.maze = maze;
-    }
-    /**
-     * Progresses the algorithm solution by 1 step, modifying the maze and producing sound appropriately
-     */
-    protected abstract step(): void;
-
-    /**
-     * Begins drawing the maze solving steps until cancelled externally or the algorithm completes execution
-     */
-    public visualize(): void {
-        this.config.is_paused = false;
-        this.interval_code = setInterval(() => {
-            if (this.config.alg !== undefined) this.config.alg.step.call(this); // Disturbing
-        }, calculate_delay(this.config));
-    }
-
-    /**
-     * Makes sure that the visualization interval is set to the most recent rate supplied by the user
-     */
-    public update_visualize_interval() {
-        clearInterval(this.interval_code);
-        this.interval_code = setInterval(() => {
-            if (this.config.alg !== undefined) this.config.alg.step.call(this);
-        }, calculate_delay(this.config));
-    }
-
-    protected playNote(frequency: number, duration: number) {
-        if (this.config.audio_config === undefined || this.config.audio_config.gain_node === undefined) return;
-        const oscillator = this.config.audio_config.audio_ctx.createOscillator();
-        oscillator.type = "square";
-        oscillator.connect(this.config.audio_config.gain_node);
-        oscillator.frequency.value = normalize_audio(frequency, this.config.audio_config);
-        oscillator.start();
-
-        setTimeout(() => {
-            oscillator.stop();
-        }, duration / 2);
-    }
-
-    protected canvas_draw_path(path_cell: searched_cell) {
-        if (path_cell.prev_cell !== undefined) path_cell = path_cell.prev_cell;
-        if (ctx === null) return;
-        ctx.fillStyle = "purple";
-        const draw_step = () => {
-            if (path_cell.prev_cell === undefined) {
-                clearInterval(interval_draw);
-                return;
-            }
-            ctx.fillRect(path_cell.coord.x * cell_width, path_cell.coord.y * cell_height, cell_width, cell_height);
-            path_cell = path_cell.prev_cell;
-            this.playNote(coordinate_frequency(path_cell.coord), this.config.draw_delay);
-        };
-        const interval_draw = setInterval(draw_step, this.config.draw_delay);
-    }
 }
 
 function canvas_refresh(maze: Maze) {
@@ -236,214 +174,7 @@ function canvas_draw_rect_with_preview(nearest_position: Coordinate, actual_posi
     ctx.fillRect(actual_position.x - cell_width / 2, actual_position.y - cell_height / 2, cell_width, cell_height);
 }
 
-class BFS extends MazeSolvingAlgorithm {
-    next_search_frontier: Array<searched_cell> = [];
-    iterator = this.next_search_frontier.values();
-
-    constructor(config: VisualizationConfig, maze: Maze) {
-        super(config, maze);
-        if (maze.start !== undefined) this.next_search_frontier = [{ coord: maze.start, prev_cell: undefined }];
-    }
-
-    protected step() {
-        if (this.interval_code === undefined) return;
-        if (config.is_paused) return;
-
-        const next = this.iterator.next();
-        let position: searched_cell = next.value;
-        let done = next.done === true;
-
-        if (done === true) {
-            if (this.next_search_frontier.length === 0) this.search_ended = true;
-            this.iterator = this.next_search_frontier.values();
-            this.next_search_frontier = [];
-            position = this.iterator.next().value;
-        }
-        if (!this.search_ended) {
-            maze.set_cell_type(position.coord, MazeCell.EXPLORED);
-            for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-                if (coordinate_equals(maze.end, adjacent_position)) {
-                    this.final_searched_cell = {
-                        coord: adjacent_position,
-                        prev_cell: position,
-                    };
-                    break;
-                } else if (maze.get_cell_type(adjacent_position) === MazeCell.FLOOR) {
-                    maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
-                    this.playNote(coordinate_frequency(adjacent_position), calculate_delay(this.config));
-                    this.next_search_frontier.push({
-                        coord: adjacent_position,
-                        prev_cell: position,
-                    });
-                }
-            }
-            if (this.final_searched_cell !== undefined) {
-                for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-                    if (maze.get_cell_type(adjacent_position) === MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
-                }
-            }
-
-            if (this.final_searched_cell !== undefined) this.search_ended = true;
-            canvas_refresh(this.maze);
-        } else {
-            if (this.final_searched_cell !== undefined) {
-                this.canvas_draw_path(this.final_searched_cell);
-                console.log("Found end");
-            } else {
-                console.log("Could not find end");
-            }
-            clearInterval(this.interval_code);
-        }
-    }
-}
-
-type priority_queue_element = {
-    priority: number;
-    cell: searched_cell;
-};
-class GBFS extends MazeSolvingAlgorithm {
-    search_frontier: Array<priority_queue_element> = [];
-
-    constructor(config: VisualizationConfig, maze: Maze) {
-        super(config, maze);
-        if (maze.start !== undefined && maze.end !== undefined)
-            this.search_frontier = [
-                { priority: euclidean_distance(maze.start, maze.end), cell: { coord: maze.start, prev_cell: undefined } },
-            ];
-    }
-
-    protected step() {
-        if (maze.end === undefined || this.interval_code === undefined) return;
-        if (config.is_paused) return;
-
-        const frontier_element = this.search_frontier.shift();
-        if (frontier_element === undefined) return;
-        const position = frontier_element.cell;
-        maze.set_cell_type(position.coord, MazeCell.EXPLORED);
-
-        for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-            if (coordinate_equals(maze.end, adjacent_position)) {
-                this.final_searched_cell = {
-                    coord: adjacent_position,
-                    prev_cell: position,
-                };
-                break;
-            } else if (maze.get_cell_type(adjacent_position) === MazeCell.FLOOR) {
-                maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
-                this.playNote(coordinate_frequency(adjacent_position), calculate_delay(this.config));
-                const priority = euclidean_distance(adjacent_position, maze.end);
-                let index_to_insert = 0;
-                for (const element of this.search_frontier) {
-                    if (element.priority > priority) break;
-                    index_to_insert++;
-                }
-                this.search_frontier.splice(index_to_insert, 0, {
-                    priority: priority,
-                    cell: { coord: adjacent_position, prev_cell: position },
-                });
-            }
-        }
-        if (this.final_searched_cell !== undefined) {
-            for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-                if (maze.get_cell_type(adjacent_position) === MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
-            }
-        }
-        if (this.final_searched_cell !== undefined) this.search_ended = true;
-        if (this.search_frontier.length == 0) this.search_ended = true;
-        canvas_refresh(this.maze);
-
-        if (this.search_ended) {
-            if (this.final_searched_cell !== undefined) {
-                this.canvas_draw_path(this.final_searched_cell);
-                console.log("Found end");
-            } else {
-                console.log("Could not find end");
-            }
-            clearInterval(this.interval_code);
-        }
-    }
-}
-
-type priority_queue_length_element = {
-    priority: number;
-    cell: searched_cell;
-    length: number;
-};
-class ASTAR extends MazeSolvingAlgorithm {
-    search_frontier: Array<priority_queue_length_element> = [];
-
-    constructor(config: VisualizationConfig, maze: Maze) {
-        super(config, maze);
-        if (maze.start === undefined || maze.end === undefined) return;
-        this.search_frontier = [
-            {
-                priority: euclidean_distance(maze.start, maze.end),
-                cell: { coord: maze.start, prev_cell: undefined },
-                length: 0,
-            },
-        ];
-    }
-
-    private astar_dist(current_cell: priority_queue_length_element, next_coord: Coordinate) {
-        if (maze.end === undefined) return 0;
-        return current_cell.length + euclidean_distance(maze.end, next_coord);
-    }
-
-    protected step() {
-        if (maze.end === undefined || this.interval_code === undefined) return;
-        if (config.is_paused) return;
-
-        const frontier_element = this.search_frontier.shift();
-        if (frontier_element === undefined) return;
-        const position = frontier_element.cell;
-        maze.set_cell_type(position.coord, MazeCell.EXPLORED);
-
-        for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-            if (coordinate_equals(maze.end, adjacent_position)) {
-                this.final_searched_cell = {
-                    coord: adjacent_position,
-                    prev_cell: position,
-                };
-                break;
-            } else if (maze.get_cell_type(adjacent_position) === MazeCell.FLOOR) {
-                maze.set_cell_type(adjacent_position, MazeCell.ACTIVE);
-                this.playNote(coordinate_frequency(adjacent_position), calculate_delay(this.config));
-                const priority = this.astar_dist(frontier_element, adjacent_position);
-                let index_to_insert = 0;
-                for (const element of this.search_frontier) {
-                    if (element.priority > priority) break;
-                    index_to_insert++;
-                }
-                this.search_frontier.splice(index_to_insert, 0, {
-                    priority: priority,
-                    cell: { coord: adjacent_position, prev_cell: position },
-                    length: frontier_element.length + 1,
-                });
-            }
-        }
-        if (this.final_searched_cell !== undefined) {
-            for (const adjacent_position of maze.get_neighboring_coordinates(position.coord)) {
-                if (maze.get_cell_type(adjacent_position) === MazeCell.ACTIVE) maze.set_cell_type(adjacent_position, MazeCell.FLOOR);
-            }
-        }
-        if (this.final_searched_cell !== undefined) this.search_ended = true;
-        if (this.search_frontier.length === 0) this.search_ended = true;
-        canvas_refresh(this.maze);
-
-        if (this.search_ended) {
-            if (this.final_searched_cell !== undefined) {
-                this.canvas_draw_path(this.final_searched_cell);
-                console.log("Found end");
-            } else {
-                console.log("Could not find end");
-            }
-            clearInterval(this.interval_code);
-        }
-    }
-}
-
 // MAIN FUNCTION
-
 const maze_config: MazeConfig = { grid_width: 40, grid_height: 20 };
 let maze = new Maze(maze_config);
 
@@ -476,6 +207,7 @@ const click_event: ClickEvent = {
     },
     is_dragging_start: false,
     is_dragging_end: false,
+    brush_type: MazeCell.WALL,
 };
 function cancel_click() {
     click_event.mouse_down = false;
@@ -496,13 +228,13 @@ canvas.onmousedown = function (e) {
         click_event.is_dragging_start = true;
     } else if (coordinate_equals(maze.end, clicked_coordinate)) {
         click_event.is_dragging_end = true;
+    } else {
+        const clicked_type = maze.get_cell_type(clicked_coordinate);
+        click_event.brush_type = (clicked_type == MazeCell.WALL) ? MazeCell.FLOOR : MazeCell.WALL;
     }
 };
 canvas.onmousemove = function (e) {
     if (config.alg !== undefined || !click_event.mouse_down) return;
-    if (!click_event.is_dragging_start && !click_event.is_dragging_end) return;
-    let color = color_start;
-    if (click_event.is_dragging_end) color = color_end;
     
     const canvas_rect = canvas.getBoundingClientRect();
     click_event.current_coordinate = {
@@ -514,6 +246,16 @@ canvas.onmousemove = function (e) {
         y: Math.floor(click_event.current_coordinate.y),
     };
 
+    // Paint celltype
+    if (!click_event.is_dragging_start && !click_event.is_dragging_end) {
+        maze.set_cell_type(click_event.current_nearest_coordinate, click_event.brush_type);
+        canvas_refresh(maze);
+        return;
+    }
+
+    // Drag start or end
+    let color = color_start;
+    if (click_event.is_dragging_end) color = color_end;
     const actual_position = {
         x: click_event.current_coordinate.x * cell_width,
         y: click_event.current_coordinate.y * cell_height,
@@ -586,13 +328,10 @@ button_start.onclick = function () {
         config.is_paused = false;
         return;
     }
+    
     // Redo visualization
-    if (config.alg !== undefined) {
-        config.alg.search_ended = true;
-        clearInterval(config.alg.interval_code);
-        config.alg = undefined;
-        maze.reload();
-    }
+    maze.reload();
+
     // Normal start
     if ((document.getElementById("bfs") as HTMLInputElement).checked) config.alg = new BFS(config, maze);
     if ((document.getElementById("gbfs") as HTMLInputElement).checked) config.alg = new GBFS(config, maze);
@@ -602,6 +341,18 @@ button_start.onclick = function () {
 const button_stop = document.getElementById("stop") as HTMLInputElement;
 button_stop.onclick = function () {
     config.is_paused = true;
+};
+
+const button_clear = document.getElementById("clear") as HTMLButtonElement;
+button_clear.onclick = function () {
+    cancel_click();
+    if (config.alg !== undefined) {
+        config.alg.search_ended = true;
+        clearInterval(config.alg.interval_code);
+    }
+    config.alg?.end_visualization();
+    maze.reload();
+    canvas_refresh(maze);
 };
 const button_regenerate = document.getElementById("regenerate") as HTMLButtonElement;
 button_regenerate.onclick = function () {
