@@ -13,7 +13,7 @@
     <form id="settings">
       <p>
         <label for="volume">Volume</label>
-        <input type="range" id="range volume" min="0" max="100" value="50" class="slider">
+        <input type="range" id="range volume" min="0" max="100" value="25" class="slider">
         <input type="text" id="text volume" name="name" required minlength="4" maxlength="8" size="10"/><br>
         <label for="speed">Simulation Speed</label>
         <input type="range" id="range speed" min="0.01" max="1" value="0.5" class="slider" step="any">
@@ -44,5 +44,14 @@
     
     <!--CANVAS-->
     <canvas id="maze_canvas" width="600" height="300"></canvas>
+
+    <p>
+      <h3>Controls:</h3>
+      <ul>
+        <li>Click on tile to change it from wall to floor or vice versa</li>
+        <li>Drag start or end to change their position</li>
+        <li>The buttons are all pretty intuitive I think</li>
+      </ul>
+    </p>
   </body>
 </html>

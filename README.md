@@ -16,18 +16,16 @@ actually quite a few so I won't list more.
 ## COMPLETED
 
 - Ability to generate random maze
+- Ability to modify generated maze
 - Multiple maze solving algorithms
 - Visualize steps of solution
 - Visualization options
 
 ## TODO
 
-- Make volume slider affect volume
 - Make it so that generated maze is guaranteed to be solvable
-- Add ability to press on tile to change between wall and path
-- Add ability to click and drag around start and end tiles
 - Add color legend
 
 - Fix sound sometimes not playing
 
-- Split across several files, add bundler command to readme, add bundler to dependencies, use interfaces
+- Split across several files, add bundler command to readme, add bundler to dependencies
